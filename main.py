@@ -67,7 +67,6 @@ def SearchForDuplicates(modFiles):
                     FoundConflict(indexedModFiles, itemID)
             else:
                 FoundConflict(indexedModFiles, itemID)
-    input()
     #Clear_Screen()
     return indexedModFiles
 
