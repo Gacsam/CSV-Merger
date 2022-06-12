@@ -25,4 +25,5 @@ Not sure if Yapped or the game itself is causing the weird spacing in the csv fi
 5. Press Replace All. Your file should be lacking any weird spacing now, and can be found in 2.Merged_CSVs
 6. Place the merged CSV into Yapped's folder and import it back in.
 Notepad++ offers the option to open multiple files at once, as well as replacing in all open files, allowing you to do it just once.
+
 Sometimes there's an Index error when importing into Yapped, this is caused by multiple items having the same index, such as is issue with Unlocked Unique Skills. The merger script does point those out and attempt to fix those.
