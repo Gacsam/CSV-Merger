@@ -2,6 +2,7 @@
 for Elden Ring
 
 Guide
+
 It is much more efficient on the computer if you know exactly which CSV files have been edited!
 1. Use Yapped to export files you're wanting to edit, mass export will make it take longer as it will check every single file for new entries. This includes
    - Vanilla regulation.bin (current files are from 1.04 version)
@@ -15,6 +16,7 @@ It is much more efficient on the computer if you know exactly which CSV files ha
 5. Follow instructions, pay attention and when editing IDs - note them down and keep track of which ones you have already taken.
 
 Errors
+
 Not sure if Yapped or the game itself is causing the weird spacing in the csv files, such as Elden Ring Reforged﻿'s, but worry not, it's easily fixable.
 1. Open the csv file in Notepad, right click -> edit.
 2. Pick a line that starts with a semicolon ; and place your text cursor on the right of it
