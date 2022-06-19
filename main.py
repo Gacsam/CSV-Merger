@@ -78,7 +78,7 @@ def SearchForDuplicatesInFile(modFiles, modCount):
                             "0 - Overwrite all. 1 - Keep all. ")
                 noConflictFound = False
             modConflict = modFiles.iloc[itemID:itemID + 2, :].reset_index().set_index("Row Name").T \
-                .drop_duplicates(keep=False).T.reset_index().set_index("Row ID").reset_index()
+                .drop_duplicates(keep=False).T.reset_index()
             if overwriteFiles:
                 if massEdit:
                     if overwriteAll:
@@ -89,7 +89,7 @@ def SearchForDuplicatesInFile(modFiles, modCount):
                     FoundConflict(indexedModFiles, itemID)
             else:
                 print(modFiles.iloc[itemID - 25:itemID + 25, :2])
-                print("Found conflicts: ")
+                print("Found conflicts at ID " + str(modFiles.reset_index().iloc[itemID, 0]))
                 print(modConflict)
                 anyFreeRows = GetUserInputZero(
                     "Do you see any free Row ID? Are items different? 0 - Yes, 1 - No ")
