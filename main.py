@@ -112,13 +112,14 @@ def Clear_Screen():
     # print out some text
 
 
-def MergeMods(vanillaFile):
+def MergeMods(vanillaFile, onlyModdedItems=False):
     baseFileName = os.path.basename(vanillaFile)
     newMods = glob.glob(os.path.join(".\\1.Mod_CSVs\\**", baseFileName), recursive=True)
     # if any mod files are found
     if newMods:
         # index by Row Name so we don't have to worry about just different names in exact same files
-        baseCSV = pd.read_csv(vanillaFile, sep=";", index_col=False).set_index("Row Name")
+        baseCSV = pd.read_csv(vanillaFile, sep=";", index_col=False,
+                              converters={"Row ID": int, "Row Name": str}).set_index("Row Name")
         allModdedFiles = pd.DataFrame()
         # go through each individual mod
         modCount = 0
@@ -127,7 +128,8 @@ def MergeMods(vanillaFile):
             # get mod name
             modName = os.path.basename(os.path.dirname(newMod))
             # read mod CSV
-            modCSV = pd.read_csv(newMod, sep=";", index_col=False).set_index("Row Name")
+            modCSV = pd.read_csv(newMod, sep=";", index_col=False,
+                                 converters={"Row ID": int, "Row Name": str}).set_index("Row Name")
             # merge two base files to cancel each other out, this way we keep ONLY the edited files
             # rather than having a list of files that were edited along with their non-edited counterparts
             newModFiles = pd.concat([baseCSV, baseCSV, modCSV]).drop_duplicates(keep=False)
@@ -147,28 +149,35 @@ def MergeMods(vanillaFile):
             allModdedFiles = allModdedFiles.rename(columns={"index": "Row ID"}).set_index("Row ID")
             modCount = modCount + 1
         # overwrite Mod ID with Row ID as our index
+
         allModdedFiles = SetNewIndex(allModdedFiles, "ModID").set_index("Row ID")
         # set row name as index again to drop vanilla files
         allModdedFiles = SetNewIndex(allModdedFiles.sort_index(), "Row Name")
-        # merge new files to the base csv
-        mergedCSV = pd.concat([baseCSV, allModdedFiles])
-        # remove duplicates from base, keep new ones
-        mergedCSV = mergedCSV.drop_duplicates(subset=["Row ID"], keep="last")
+        mergedCSV = allModdedFiles
+        if not onlyModdedItems:
+            # merge new files to the base csv
+            mergedCSV = pd.concat([baseCSV, allModdedFiles])
+            # remove duplicates from base, keep new ones
+            mergedCSV = mergedCSV.drop_duplicates(subset=["Row ID"], keep="last")
         # put Row ID back as our index
         mergedCSV = SetNewIndex(mergedCSV, "Row ID")
         # let it sort itself out
         mergedCSV = mergedCSV.sort_index()
         # and export to a file
-        mergedCSV.to_csv(os.path.join(mergeDir, baseFileName), sep=";", index=True)
+
+        if not mergedCSV.empty:
+            mergedCSV.to_csv(os.path.join(mergeDir, baseFileName), sep=";", index=True)
 
 
 if __name__ == "__main__":
     baseList = glob.glob(".\\0.Base_CSVs\\*.csv")
     mergeDir = os.path.join(os.path.basename(__file__), "..\\2.Merged_CSVs")
     # check if base files exist
+    onlyModFiles = not GetUserInputZero(
+        "How do you want your CSV formatted? 0 - Ready for regulation.bin, 1 - List only edited entries: ")
     if baseList:
         for baseFile in baseList:
-            MergeMods(baseFile)
+            MergeMods(baseFile, onlyModFiles)
     else:
         input("No base file found, press any key to exit")
     input("Merging complete, press any key to continue")
