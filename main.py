@@ -4,8 +4,12 @@ import shutil
 
 import pandas as pd
 
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 pd.set_option("display.max_rows", 1000)
-pd.set_option("display.max_columns", 10)
+pd.set_option("display.max_columns", 1000)
 pd.set_option("display.width", 1000)
 
 
@@ -38,36 +42,63 @@ def SetNewIndex(files, index_name):
     return files.reset_index().set_index(index_name)
 
 
-def FoundConflict(modFiles, conflictItemID):
-    conflictUserInput = GetUserInputZero("Found conflicts, select which - 0 or 1 - to keep: ")
-    if conflictUserInput:
-        modFiles.drop(conflictItemID + 1, inplace=True)
+def FoundConflict(modFiles, conflictItemID, massOverwrite=False, overwriteAll=False):
+    targetID = 0
+    if massOverwrite:
+        if overwriteAll:
+            targetID = conflictItemID
+        else:
+            targetID = conflictItemID + 1
     else:
-        modFiles.drop(conflictItemID, inplace=True)
+        conflictUserInput = GetUserInputZero("Select which - 0 or 1 - to keep: ")
+        if conflictUserInput:
+            targetID = conflictItemID + 1
+        else:
+            targetID = conflictItemID
+    modFiles.drop(targetID, inplace=True)
 
 
-def SearchForDuplicates(modFiles):
+def SearchForDuplicatesInFile(modFiles, modCount):
     indexedModFiles = modFiles.reset_index()
+    overwriteFiles = False
+    massEdit = False
+    overwriteAll = False
+    noConflictFound = True
     # last means the first copy is true, check by row id that is the index
     for itemID, fileAlreadyExists in enumerate(modFiles.index.duplicated(keep="last")):
         if fileAlreadyExists:
-            modConflict = modFiles.iloc[itemID:itemID + 2, :2]
-            print()
-            print(modConflict.reset_index().rename(columns={"index": "Row ID"}))
-            userInput = GetUserInputZero(
-                "Found conflicts, would you like to try to solve them? 0 - Yes, 1 - Overwrite instead ")
-            if userInput:
-                print(modFiles.iloc[itemID - 25:itemID + 25, :2])
-                userInput = GetUserInputZero(
-                    "Do you see any free Row ID? 0 - Yes, 1 - No ")
-                if userInput:
-                    newID = input("Please enter the new Row ID: ")
-                    indexedModFiles.at[itemID, "Row ID"] = int(newID)
+            if noConflictFound:
+                overwriteFiles = GetUserInputZero(
+                    "Conflicts found, would you like to solve them? 0 - Overwrite. 1 - Solve. ")
+                if overwriteFiles:
+                    massEdit = GetUserInputZero(
+                        "Would you like to apply this to all files? 0 - Yes. 1 - No. ")
+                    if massEdit:
+                        overwriteAll = GetUserInputZero(
+                            "0 - Overwrite all. 1 - Keep all. ")
+                noConflictFound = False
+            modConflict = modFiles.iloc[itemID:itemID + 2, :].reset_index().set_index("Row Name").T \
+                .drop_duplicates(keep=False).T.reset_index().set_index("Row ID").reset_index()
+            if overwriteFiles:
+                if massEdit:
+                    if overwriteAll:
+                        FoundConflict(indexedModFiles, itemID, True, True)
+                    else:
+                        FoundConflict(indexedModFiles, itemID, True, False)
                 else:
                     FoundConflict(indexedModFiles, itemID)
             else:
-                FoundConflict(indexedModFiles, itemID)
-    #Clear_Screen()
+                print(modFiles.iloc[itemID - 25:itemID + 25, :2])
+                print("Found conflicts: ")
+                print(modConflict)
+                anyFreeRows = GetUserInputZero(
+                    "Do you see any free Row ID? Are items different? 0 - Yes, 1 - No ")
+                if anyFreeRows:
+                    newID = input("Please enter the new Row ID for <" + indexedModFiles.at[itemID, "Row Name"] + ">")
+                    indexedModFiles.at[itemID, "Row ID"] = int(newID)
+                else:
+                    FoundConflict(indexedModFiles, itemID)
+    # Clear_Screen()
     return indexedModFiles
 
 
@@ -76,7 +107,7 @@ def Clear_Screen():
     if os.name == 'posix':
         _ = os.system('clear')
     else:
-        # for windows platfrom
+        # for windows platform
         _ = os.system('cls')
     # print out some text
 
@@ -90,6 +121,7 @@ def MergeMods(vanillaFile):
         baseCSV = pd.read_csv(vanillaFile, sep=";", index_col=False).set_index("Row Name")
         allModdedFiles = pd.DataFrame()
         # go through each individual mod
+        modCount = 0
         for newMod in newMods:
             # Clear_Screen()
             # get mod name
@@ -108,11 +140,12 @@ def MergeMods(vanillaFile):
             del newModFilesWithModID
             # sort modded files by row ID
             allModdedFiles = SortByRowID(allModdedFiles)
-            print("Added entries from folder <" + modName + "> to  <" + baseFileName + ">")
+            print("Adding entries from folder <" + modName + "> to  <" + baseFileName + ">")
             # search for duplicates
-            allModdedFiles = SearchForDuplicates(allModdedFiles)
+            allModdedFiles = SearchForDuplicatesInFile(allModdedFiles, modCount)
             # rename index back to Row ID
             allModdedFiles = allModdedFiles.rename(columns={"index": "Row ID"}).set_index("Row ID")
+            modCount = modCount + 1
         # overwrite Mod ID with Row ID as our index
         allModdedFiles = SetNewIndex(allModdedFiles, "ModID").set_index("Row ID")
         # set row name as index again to drop vanilla files
