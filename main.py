@@ -1,12 +1,11 @@
 import os
 import glob
-import shutil
 
 import pandas as pd
 
 import warnings
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.filterwarnings("error")
 
 pd.set_option("display.max_rows", 1000)
 pd.set_option("display.max_columns", 1000)
@@ -58,7 +57,7 @@ def FoundConflict(modFiles, conflictItemID, massOverwrite=False, overwriteAll=Fa
     modFiles.drop(targetID, inplace=True)
 
 
-def SearchForDuplicatesInFile(modFiles, modCount):
+def SearchForDuplicatesInFile(modFiles):
     indexedModFiles = modFiles.reset_index()
     overwriteFiles = False
     massEdit = False
@@ -115,21 +114,20 @@ def Clear_Screen():
 def MergeMods(vanillaFile, onlyModdedItems=False):
     baseFileName = os.path.basename(vanillaFile)
     newMods = glob.glob(os.path.join(".\\1.Mod_CSVs\\**", baseFileName), recursive=True)
+    allModdedFiles = pd.DataFrame()
     # if any mod files are found
     if newMods:
         # index by Row Name so we don't have to worry about just different names in exact same files
         baseCSV = pd.read_csv(vanillaFile, sep=";", index_col=False,
-                              converters={"Row ID": int, "Row Name": str}).set_index("Row Name")
-        allModdedFiles = pd.DataFrame()
-        # go through each individual mod
-        modCount = 0
+                              converters={"Row ID": int, "Row Name": str, "Weapon Name": str}).set_index("Row Name")
+    # go through each individual mod
         for newMod in newMods:
             # Clear_Screen()
-            # get mod name
             modName = os.path.basename(os.path.dirname(newMod))
+            print("Reading file: <" + baseFileName + "> from <" + modName + ">")
             # read mod CSV
             modCSV = pd.read_csv(newMod, sep=";", index_col=False,
-                                 converters={"Row ID": int, "Row Name": str}).set_index("Row Name")
+                                 converters={"Row ID": int, "Row Name": str}).set_index("Row Name").drop_duplicates()
             # merge two base files to cancel each other out, this way we keep ONLY the edited files
             # rather than having a list of files that were edited along with their non-edited counterparts
             newModFiles = pd.concat([baseCSV, baseCSV, modCSV]).drop_duplicates(keep=False)
@@ -142,14 +140,11 @@ def MergeMods(vanillaFile, onlyModdedItems=False):
             del newModFilesWithModID
             # sort modded files by row ID
             allModdedFiles = SortByRowID(allModdedFiles)
-            print("Adding entries from folder <" + modName + "> to  <" + baseFileName + ">")
             # search for duplicates
-            allModdedFiles = SearchForDuplicatesInFile(allModdedFiles, modCount)
+            allModdedFiles = SearchForDuplicatesInFile(allModdedFiles)
             # rename index back to Row ID
             allModdedFiles = allModdedFiles.rename(columns={"index": "Row ID"}).set_index("Row ID")
-            modCount = modCount + 1
         # overwrite Mod ID with Row ID as our index
-
         allModdedFiles = SetNewIndex(allModdedFiles, "ModID").set_index("Row ID")
         # set row name as index again to drop vanilla files
         allModdedFiles = SetNewIndex(allModdedFiles.sort_index(), "Row Name")
@@ -164,7 +159,6 @@ def MergeMods(vanillaFile, onlyModdedItems=False):
         # let it sort itself out
         mergedCSV = mergedCSV.sort_index()
         # and export to a file
-
         if not mergedCSV.empty:
             mergedCSV.to_csv(os.path.join(mergeDir, baseFileName), sep=";", index=True)
 
@@ -176,8 +170,13 @@ if __name__ == "__main__":
     onlyModFiles = not GetUserInputZero(
         "How do you want your CSV formatted? 0 - Ready for regulation.bin, 1 - List only edited entries: ")
     if baseList:
-        for baseFile in baseList:
-            MergeMods(baseFile, onlyModFiles)
+        try:
+            for baseFile in baseList:
+                MergeMods(baseFile, onlyModFiles)
+        except(ValueError, Warning, RuntimeError):
+            print("Issue reading file, check current file for issues.")
+            input("Press any key to quit.")
+            quit()
     else:
         input("No base file found, press any key to exit")
     input("Merging complete, press any key to continue")
