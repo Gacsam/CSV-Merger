@@ -42,27 +42,36 @@ def SetNewIndex(files, index_name):
 
 
 def FoundConflict(modFiles, conflictItemID, massOverwrite=False, overwriteAll=False):
-    targetID = 0
+    removeID = 0
+    conflictItem = modFiles[modFiles.reset_index()["index"] == conflictItemID]
+    #conflictItem = conflictItem["Row ID"].item()
+    #conflictItem = modFiles[modFiles["Row ID"] == conflictItem].iloc[:,:3].reset_index(drop=True)
+    print(conflictItem)
     if massOverwrite:
         if overwriteAll:
-            targetID = conflictItemID
+            removeID = conflictItemID
         else:
-            targetID = conflictItemID + 1
+            removeID = conflictItemID + 1
     else:
         conflictUserInput = GetUserInputZero("Select which - 0 or 1 - to keep: ")
         if conflictUserInput:
-            targetID = conflictItemID + 1
+            removeID = conflictItemID + 1
         else:
-            targetID = conflictItemID
-    modFiles.drop(targetID, inplace=True)
+            removeID = conflictItemID
+    modFiles.drop(removeID, inplace=True)
 
 
-def SearchForDuplicatesInFile(modFiles):
+def SearchForDuplicatesInFile(modFiles, forceOverwrite = False):
     indexedModFiles = modFiles.reset_index()
     overwriteFiles = False
     massEdit = False
     overwriteAll = False
     noConflictFound = True
+    if forceOverwrite:
+        overwriteFiles = True
+        massEdit = True
+        overwriteAll = True
+        noConflictFound = False
     # last means the first copy is true, check by row id that is the index
     for itemID, fileAlreadyExists in enumerate(modFiles.index.duplicated(keep="last")):
         if fileAlreadyExists:
@@ -75,7 +84,7 @@ def SearchForDuplicatesInFile(modFiles):
                     if massEdit:
                         overwriteAll = GetUserInputZero(
                             "0 - Overwrite all. 1 - Keep all. ")
-                noConflictFound = False
+                        noConflictFound = False
             modConflict = modFiles.iloc[itemID:itemID + 2, :].reset_index().set_index("Row Name").T \
                 .drop_duplicates(keep=False).T.reset_index()
             if overwriteFiles:
@@ -119,7 +128,7 @@ def MergeMods(vanillaFile, onlyModdedItems=False):
     if newMods:
         # index by Row Name so we don't have to worry about just different names in exact same files
         baseCSV = pd.read_csv(vanillaFile, sep=";", index_col=False,
-                              converters={"Row ID": int, "Row Name": str, "Weapon Name": str}).set_index("Row Name")
+                              converters={"Row ID": int, "Row Name": str}).set_index("Row Name")
     # go through each individual mod
         for newMod in newMods:
             # Clear_Screen()
@@ -141,7 +150,9 @@ def MergeMods(vanillaFile, onlyModdedItems=False):
             # sort modded files by row ID
             allModdedFiles = SortByRowID(allModdedFiles)
             # search for duplicates
-            allModdedFiles = SearchForDuplicatesInFile(allModdedFiles)
+            showConflicts = GetUserInputZero(
+                "Would you like to see conflicts between individual mods or ovewrite all by load order? 0 - Show conflicts, 1 - Force overwrite ")
+            allModdedFiles = SearchForDuplicatesInFile(allModdedFiles, bool(showConflicts))
             # rename index back to Row ID
             allModdedFiles = allModdedFiles.rename(columns={"index": "Row ID"}).set_index("Row ID")
         # overwrite Mod ID with Row ID as our index
@@ -161,7 +172,6 @@ def MergeMods(vanillaFile, onlyModdedItems=False):
         # and export to a file
         if not mergedCSV.empty:
             mergedCSV.to_csv(os.path.join(mergeDir, baseFileName), sep=";", index=True)
-
 
 if __name__ == "__main__":
     baseList = glob.glob(".\\0.Base_CSVs\\*.csv")
