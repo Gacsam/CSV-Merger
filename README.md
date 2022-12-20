@@ -1,4 +1,7 @@
 # CSV-Merger
+
+# !DISCONTINUED! Yapped has been last updated for Elden Ring Reforged 1.04, use DSMapStudio instead, which has the merging functionality built in.
+
 for Elden Ring
 
 Guide
